@@ -18,5 +18,6 @@ dialog{border:0;border-radius:14px;padding:20px;box-shadow:0 12px 40px #1a322044
 .eyebrow{font-size:14px}
 .course-event{display:inline-flex;align-items:center;line-height:1;margin-right:.4rem}
 .course-map-title>span{display:inline-flex;align-items:center;line-height:1}
+.course-note{margin:-.45rem 0 .8rem;color:#78857e;font-size:.78rem}
 .course-map-title a{color:#78857e;text-decoration:none}
 .name-edit{margin-left:.35rem}
