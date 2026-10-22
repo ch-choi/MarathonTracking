@@ -19,5 +19,7 @@ dialog{border:0;border-radius:14px;padding:20px;box-shadow:0 12px 40px #1a322044
 .course-event{display:inline-flex;align-items:center;line-height:1;margin-right:.4rem}
 .course-map-title>span{display:inline-flex;align-items:center;line-height:1}
 .course-note{margin:-.45rem 0 .8rem;color:#c2482d;font-size:.78rem;font-weight:700}
+.result-head::after,.course-map-title::after{content:'' !important;font-size:0}
+.course-subtitle{margin-top:1.5rem;padding:0 0 .7rem;color:#1d2925;font-size:1rem;font-weight:700}
 .course-map-title a{color:#78857e;text-decoration:none}
 .name-edit{margin-left:.35rem}
