@@ -27,3 +27,9 @@
 
 - GitHub: https://github.com/ch-choi/MarathonTracking
 - Production: https://marathontracking.changhyunchoe.workers.dev/
+- Short URL: https://tinyurl.com/maratrack/
+
+## 코스의 GPX 데이터
+
+- https://github.com/zohoda-ui/gpx-road
+- https://wari-gari.com/
