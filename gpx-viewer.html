@@ -196,6 +196,7 @@
 <script>
     const urlParams = new URLSearchParams(window.location.search);
     const GPX_URL = urlParams.get('url') || 'https://zohoda-ui.github.io/gpx-road/chuncheon_full.gpx';
+    const FALLBACK_URL = urlParams.get('fallback') || '';
     const MAP_STYLE = urlParams.get('style') || 'osm';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5cnJwYXF2d2ZlYWNvd21vc2d2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MDYyMzMsImV4cCI6MjEwODA4MjIzM30.xLvhRTDA7MSrYiGF7n5e_dGFPw4sxohq-5tWuBSp95E';
 
@@ -404,9 +405,16 @@
             }
 
             setLoadingStep('step-read');
-            const response = await fetch(GPX_URL, GPX_URL.includes('supabase.co/functions') ? { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } } : undefined);
+            let response;
+            try {
+                response = await fetch(GPX_URL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            } catch (primaryError) {
+                if (!FALLBACK_URL) throw primaryError;
+                response = await fetch(FALLBACK_URL, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
+            }
             if (!response.ok) throw new Error('네트워크 응답이 정상이 아닙니다.');
-            const isRouteJson = GPX_URL.includes('wari-jtbc-route') || response.headers.get('content-type')?.includes('application/json');
+            const isRouteJson = response.url.includes('wari-jtbc-route') || response.headers.get('content-type')?.includes('application/json');
             const gpxText = isRouteJson
                 ? `<gpx><trk><trkseg>${(await response.json()).points.map(p => `<trkpt lat="${p.latitude}" lon="${p.longitude}"><ele>${p.elevation || 0}</ele></trkpt>`).join('')}</trkseg></trk></gpx>`
                 : await response.text();
