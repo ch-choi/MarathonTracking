@@ -1,0 +1,14 @@
+node_modules/
+.git/
+.codex/
+.agents/
+graft/
+docs/
+tests/
+supabase/
+AGENTS.md
+README.md
+worker.js
+wrangler.jsonc
+*.log
+.DS_Store

@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Marathon Tracking</title>
   <link rel="stylesheet" href="styles.css" />
@@ -34,7 +35,8 @@
         <button id="shareBtn" class="button secondary">공유 링크 복사</button>
         <button id="clearBtn" class="button ghost">전체 삭제</button>
       </div>
-      <p class="privacy-note">배번 목록은 이 브라우저에 저장됩니다. 공유 링크에는 배번이 포함됩니다.</p>
+      <p class="privacy-note">배번과 수정 이름은 Supabase에 저장됩니다. 공유 링크를 가진 사람은 30일간 목록을 볼 수 있습니다.</p>
+      <p id="saveStatus" class="privacy-note" role="status"></p>
     </section>
 
     <section class="panel results-panel">
@@ -50,6 +52,8 @@
         <iframe
           title="2026 춘천마라톤 코스 지도"
           id="courseMapFrame"
+          allow="fullscreen"
+          allowfullscreen
           src="gpx-viewer.html?url=GPX/춘천_마라톤_full.gpx"
           loading="lazy"
           referrerpolicy="no-referrer"
@@ -57,7 +61,7 @@
         ></iframe>
         <div id="courseMap10k" hidden>
           <div class="course-subtitle">10K 코스</div>
-          <iframe title="10K 코스 지도" id="courseMapFrame10k" loading="lazy" referrerpolicy="no-referrer" scrolling="no"></iframe>
+          <iframe title="10K 코스 지도" id="courseMapFrame10k" allow="fullscreen" allowfullscreen loading="lazy" referrerpolicy="no-referrer" scrolling="no"></iframe>
         </div>
       </div>
     </section>
@@ -68,7 +72,7 @@
       <a href="https://smartchip.co.kr/" target="_blank" rel="noreferrer">SmartChip ↗</a>
     </footer>
   </main>
-  <dialog id="nameDialog"><form method="dialog" id="nameForm"><h3>이름 수정</h3><input id="nameEditInput" autocomplete="off"><div><button value="cancel">취소</button><button id="nameSave" value="save">저장</button></div></form></dialog>
-  <script src="app.js?v=8"></script>
+  <dialog id="nameDialog"><form method="dialog" id="nameForm"><h3>이름 수정</h3><input id="nameEditInput" maxlength="60" autocomplete="off"><div><button value="cancel">취소</button><button id="nameSave" value="save">저장</button></div></form></dialog>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

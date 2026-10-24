@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GPX Viewer</title>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body {
             margin: 0;
@@ -43,6 +41,23 @@
         #gpx-elevation-chart {
             display: block;
         }
+        .map-pin { width: 14px; height: 14px; }
+        .map-pin .pin-dot, .chart-hover-pin {
+            display: grid; place-items: center; width: 14px; height: 14px;
+            border: 2px solid #fff; border-radius: 50%; background: var(--pin-color, #10b981);
+            box-shadow: 0 1px 4px #0005; box-sizing: border-box;
+        }
+        .map-pin.runner, .map-pin.runner .pin-dot { width: 24px; height: 24px; }
+        .map-pin.runner .pin-dot { color: #fff; font-size: 11px; font-weight: 700; }
+        .pin-label {
+            position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+            white-space: nowrap; padding: 4px 6px; border-radius: 4px; background: #fff;
+            color: #18211f; font: 12px/1.4 sans-serif; box-shadow: 0 1px 4px #0004;
+            pointer-events: none;
+        }
+        .map-pin.start .pin-label { bottom: auto; top: -5px; left: auto; right: calc(100% + 6px); transform: none; }
+        .map-pin.finish .pin-label { bottom: auto; top: -5px; left: calc(100% + 6px); transform: none; }
+
         @media (max-width: 768px) {
             .gpx-map {
                 height: 290px;
@@ -116,7 +131,7 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        .leaflet-container {
+        .maplibregl-canvas {
             cursor: crosshair;
         }
         .gpx-summary {
@@ -186,8 +201,9 @@
     </div>
 </div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- OpenFreeMap vector basemap (reviewed, pinned browser distributions) -->
+<link rel="stylesheet" href="vendor/maplibre-gl-5.24.0.css" />
+<script src="vendor/maplibre-gl-5.24.0.js"></script>
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- RunRuun Elevation Engine (Production Standard) -->
@@ -197,7 +213,6 @@
     const urlParams = new URLSearchParams(window.location.search);
     const GPX_URL = urlParams.get('url') || 'GPX/춘천_마라톤_full.gpx';
     const FALLBACK_URL = urlParams.get('fallback') || '';
-    const MAP_STYLE = urlParams.get('style') || 'osm';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5cnJwYXF2d2ZlYWNvd21vc2d2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MDYyMzMsImV4cCI6MjEwODA4MjIzM30.xLvhRTDA7MSrYiGF7n5e_dGFPw4sxohq-5tWuBSp95E';
 
     let gpxChartInstance = null;
@@ -207,15 +222,29 @@
     let routePath = [];
     let runnerMarkers = [];
     const runnerPinColors = ['#d95535', '#247ee6', '#16a36a', '#8b5cf6', '#d49a00', '#e0529b'];
+    let latestRunners = [];
+    function createMapMarker(point, label, color, kind = 'course', number = '') {
+        const element = document.createElement('div');
+        element.className = `map-pin ${kind}`;
+        element.style.setProperty('--pin-color', color);
+        const dot = document.createElement('span');
+        dot.className = 'pin-dot';
+        dot.textContent = number;
+        const text = document.createElement('span');
+        text.className = 'pin-label';
+        text.textContent = label;
+        element.append(dot, text);
+        return new maplibregl.Marker({ element, anchor: 'center' }).setLngLat(point).addTo(mapInstance);
+    }
     function showRunners(runners) {
+        latestRunners = runners;
         if (!mapInstance || !routePath.length) return;
-        runnerMarkers.forEach(marker => mapInstance.removeLayer(marker));
+        runnerMarkers.forEach(marker => marker.remove());
         runnerMarkers = runners.map((runner, index) => {
             const point = routePath[Math.min(routePath.length - 1, Math.max(0, Math.round((runner.progress || 0) * (routePath.length - 1))))];
             if (!point) return null;
             const color = runnerPinColors[index % runnerPinColors.length];
-            const icon = L.divIcon({ className: 'runner-pin', html: `<span style="display:grid;place-items:center;width:24px;height:24px;border:2px solid #fff;border-radius:50%;background:${color};box-shadow:0 1px 4px #0005;color:#fff;font-size:11px;font-weight:700">${index + 1}</span>`, iconSize: [24, 24], iconAnchor: [12, 12] });
-            return L.marker(point, { icon, title: `${runner.name || '배번 ' + runner.bib} #${runner.bib}` }).bindTooltip(`${runner.name || ''} #${runner.bib}`, { permanent: true, direction: 'top', offset: [0, -8] }).addTo(mapInstance);
+            return createMapMarker(point, `${runner.name || '배번'} #${runner.bib}`, color, 'runner', String(index + 1));
         }).filter(Boolean);
     }
     window.addEventListener('message', event => { if (event.data?.type === 'marathon-runners') showRunners(event.data.runners || []); });
@@ -250,7 +279,7 @@
         document.getElementById('summary-ele-maxmin').innerText = Math.round(maxEle) + 'm / ' + Math.round(minEle) + 'm';
 
         // 2. 지도 좌표
-        const path = (rawPoints && rawPoints.length > 0 ? rawPoints : (result.points || [])).map(pt => [pt.lat, pt.lon]);
+        const path = (rawPoints && rawPoints.length > 0 ? rawPoints : (result.points || [])).map(pt => [pt.lon, pt.lat]);
 
         // 3. 차트 포인트 다운샘플링 (최대 800개)
         const MAX_CHART_POINTS = 800;
@@ -350,12 +379,12 @@
                             const index = activeElements[0].index;
                             const point = displayChartData[index];
                             if (mapInstance && hoverMarkerInstance && point) {
-                                if (!mapInstance.hasLayer(hoverMarkerInstance)) hoverMarkerInstance.addTo(mapInstance);
-                                hoverMarkerInstance.setLatLng([point.lat, point.lon]);
+                                hoverMarkerInstance.setLngLat([point.lon, point.lat]);
+                                if (!hoverMarkerInstance.getElement().isConnected) hoverMarkerInstance.addTo(mapInstance);
                             }
                         } else {
-                            if (mapInstance && hoverMarkerInstance && mapInstance.hasLayer(hoverMarkerInstance)) {
-                                mapInstance.removeLayer(hoverMarkerInstance);
+                            if (hoverMarkerInstance) {
+                                hoverMarkerInstance.remove();
                             }
                         }
                     }
@@ -370,26 +399,63 @@
             document.getElementById('gpx-chart-container').style.display = 'block';
             document.getElementById('gpx-summary').style.display = 'grid';
 
-            mapInstance = L.map('gpx-map', { scrollWheelZoom: false });
-            const mapTiles = {
-                street: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', '&copy; Esri', 19],
-                osm: ['https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', '&copy; OpenStreetMap contributors', 19],
-                topo: ['https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', '&copy; OpenStreetMap contributors, SRTM | &copy; OpenTopoMap', 17],
-                imagery: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', '&copy; Esri, Maxar, Earthstar Geographics', 19],
-                terrain: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}', '&copy; Esri', 13]
+            mapInstance = new maplibregl.Map({
+                container: 'gpx-map',
+                style: 'https://tiles.openfreemap.org/styles/bright',
+                center: path[0] || [127.71, 37.87],
+                zoom: 10,
+                scrollZoom: false,
+                dragRotate: false,
+                pitchWithRotate: false,
+                touchPitch: false,
+                attributionControl: { compact: true },
+                locale: { 'FullscreenControl.Enter': '지도 전체화면', 'FullscreenControl.Exit': '전체화면 닫기' }
+            });
+            mapInstance.touchZoomRotate.disableRotation();
+            mapInstance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+            mapInstance.addControl(new maplibregl.FullscreenControl(), 'top-right');
+            routePath = result.points.map(pt => [pt.lon, pt.lat]);
+            const courseBounds = path.length ? new maplibregl.LngLatBounds(path[0], path[0]) : null;
+            path.forEach(point => courseBounds.extend(point));
+            const fitCourse = () => {
+                mapInstance.resize();
+                if (courseBounds) mapInstance.fitBounds(courseBounds, { padding: 32, duration: 0 });
             };
-            const [tileUrl, attribution, maxZoom] = mapTiles[MAP_STYLE] || mapTiles.osm;
-            L.tileLayer(tileUrl, { attribution, maxZoom, subdomains: ['a', 'b', 'c'] }).addTo(mapInstance);
+            new ResizeObserver(fitCourse).observe(document.getElementById('gpx-map'));
+            mapInstance.once('style.load', () => {
+                mapInstance.addSource('course', { type: 'geojson', data: {
+                    type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: path }
+                } });
+                mapInstance.addLayer({ id: 'course', type: 'line', source: 'course',
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: { 'line-color': '#10b981', 'line-width': 4, 'line-opacity': 0.85 }
+                });
+                fitCourse();
+            });
+            if (path.length) {
+                createMapMarker(path[0], '출발', '#16a34a', 'start');
+                createMapMarker(path[path.length - 1], '도착', '#dc2626', 'finish');
+            }
+            let distanceMeters = 0;
+            let nextMarkerMeters = 10000;
+            for (let i = 1; i < path.length; i++) {
+                const [lon, lat] = path[i - 1];
+                const [nextLon, nextLat] = path[i];
+                const segmentMeters = RunruunElevationEngine.haversineDistanceMeters(lat, lon, nextLat, nextLon);
+                while (nextMarkerMeters <= distanceMeters + segmentMeters && segmentMeters > 0) {
+                    const fraction = (nextMarkerMeters - distanceMeters) / segmentMeters;
+                    const point = [lon + (nextLon - lon) * fraction, lat + (nextLat - lat) * fraction];
+                    createMapMarker(point, `${nextMarkerMeters / 1000} km`, '#2563eb');
+                    nextMarkerMeters += 10000;
+                }
+                distanceMeters += segmentMeters;
+            }
 
-            routePath = path;
-            const polyline = L.polyline(path, { color: '#10b981', weight: 4, opacity: 0.85, lineJoin: 'round' }).addTo(mapInstance);
-            
-            setTimeout(() => {
-                mapInstance.invalidateSize();
-                mapInstance.fitBounds(polyline.getBounds());
-            }, 200);
-
-            hoverMarkerInstance = L.circleMarker([0,0], { radius: 6, fillColor: '#10b981', color: '#ffffff', weight: 2, opacity: 1, fillOpacity: 1 });
+            const hoverElement = document.createElement('div');
+            hoverElement.className = 'chart-hover-pin';
+            hoverElement.style.pointerEvents = 'none';
+            hoverMarkerInstance = new maplibregl.Marker({ element: hoverElement }).setLngLat(path[0] || [0, 0]);
+            showRunners(latestRunners);
 
             if (gpxChartInstance) {
                 setTimeout(() => { gpxChartInstance.resize(); }, 150);
@@ -429,7 +495,7 @@
 
             setLoadingStep('step-map');
             setLoadingStep('step-chart');
-            renderAnalysis(result, rawParsed.points);
+            renderAnalysis(result, rawParsed);
             setLoadingStep('step-done');
 
         } catch (error) {
