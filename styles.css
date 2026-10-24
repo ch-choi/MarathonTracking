@@ -23,3 +23,17 @@ dialog{border:0;border-radius:14px;padding:20px;box-shadow:0 12px 40px #1a322044
 .course-subtitle{margin-top:1.5rem;padding:0 0 .7rem;color:#1d2925;font-size:1rem;font-weight:700}
 .course-map-title a{color:#78857e;text-decoration:none}
 .name-edit{margin-left:.35rem}
+
+html.map-fullscreen, .map-fullscreen body { overflow: hidden; }
+.map-fullscreen .shell { visibility: hidden; }
+.course-map iframe.is-map-fullscreen {
+    position: fixed !important; inset: 0 !important; margin: 0 !important; padding: 0 !important;
+    width: 100vw !important; height: 100vh !important; height: 100dvh !important;
+    max-width: none !important; max-height: none !important; border: 0; border-radius: 0;
+    z-index: 2147483647; background: #fff; visibility: visible;
+}
+.course-map iframe.is-map-fullscreen::backdrop { background: #fff; }
+.map-fullscreen .shell, .map-fullscreen .course-panel, .map-fullscreen .course-map, .map-fullscreen #courseMap10k {
+    transform: none !important; filter: none !important; perspective: none !important;
+    contain: none !important; overflow: visible !important;
+}

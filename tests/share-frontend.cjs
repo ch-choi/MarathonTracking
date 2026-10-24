@@ -7,7 +7,7 @@ let serial=0, clipboard='', fail=false;
 const location={href:'https://test.example/?event=myresult-176&bibs=3909&names=old',search:''};
 const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',innerHTML:'',value:'',hidden:false,style:{},parentElement:{},addEventListener(){},getAttribute(){return ''},contentWindow:{postMessage(){}},replaceChildren(text){this.textContent=text},append(){}});return nodes.get(id)};
 const context=vm.createContext({
-  URL,URLSearchParams,Date,Promise,setTimeout,clearTimeout,
+  URL,URLSearchParams,Date,Promise,setTimeout,clearTimeout,window:{addEventListener(){}},
   location,history:{replaceState(a,b,url){location.href=url;location.search=new URL(url).search}},
   localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},
   document:{getElementById:node,addEventListener(){},createElement:()=>({}),querySelectorAll:()=>[]},

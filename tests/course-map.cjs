@@ -7,7 +7,10 @@ new vm.Script(script);
 const markers = [];
 const basemaps = [];
 const resizeObservers = [];
-const element = () => ({ style: { setProperty() {} }, children: [], isConnected: false,
+const attribution = { classes: new Set(['maplibregl-compact-show']), open: true,
+    classList: { add(name){attribution.classes.add(name)}, remove(name){attribution.classes.delete(name)} },
+    removeAttribute(name){if(name==='open')this.open=false} };
+const element = () => ({ querySelector: () => attribution, style: { setProperty() {} }, children: [], isConnected: false,
     append(...children) { this.children.push(...children); }, getContext() { return {}; } });
 class Marker {
     constructor({element}) { this.element = element; }
@@ -29,9 +32,9 @@ class Map {
 class LngLatBounds { constructor(a,b) { this.points=[a,b]; } extend(p) { this.points.push(p); return this; } }
 const context = vm.createContext({
     URLSearchParams, window: { location: { search: '' }, addEventListener() {} },
-    document: { getElementById: element, createElement: element },
+    document: { getElementById: element, createElement: element, addEventListener() {} },
     Chart: function (ctx, config) { this.options=config.options; this.resize = () => {}; },
-    maplibregl: { Map, Marker, LngLatBounds, NavigationControl: class {}, FullscreenControl: class {} },
+    maplibregl: { Map, Marker, LngLatBounds, NavigationControl: class {}, FullscreenControl: class { constructor(options){this.options=options;this.events={};} on(event,callback){this.events[event]=callback;return this;} } },
     ResizeObserver: class { constructor(callback) { this.callback=callback; resizeObservers.push(this); } observe() {} },
     setTimeout() {},
 });
@@ -98,8 +101,8 @@ for(const id of ['courseMapFrame','courseMapFrame10k']) {
 }
 console.log('PASS: fullscreen control and permissions on both Full/10K iframes');
 
-const resizeSource=fs.readFileSync('app.js','utf8').split('\n').find(line=>line.startsWith('function resizeCourseMap()'));
-const resizingFrame={contentDocument:{fullscreenElement:{},body:{scrollHeight:2000},documentElement:{scrollHeight:2000}},style:{height:'568px'}};
+const resizeSource=fs.readFileSync('app.js','utf8').split('\n').find(line=>line.startsWith('function resizeCourseMap('));
+const resizingFrame={classList:{contains:()=>false},contentDocument:{fullscreenElement:{},body:{scrollHeight:2000},documentElement:{scrollHeight:2000}},style:{height:'568px'}};
 const resizeContext=vm.createContext({$:()=>resizingFrame});
 vm.runInContext(resizeSource+';resizeCourseMap()',resizeContext);
 assert.equal(resizingFrame.style.height,'568px');
@@ -114,3 +117,10 @@ resizeObservers.at(-1).callback();
 assert.equal(vm.runInContext('mapInstance.fitCount',context),beforeResize+1);
 assert.ok(vm.runInContext('mapInstance.bounds.points.length>2',context));
 console.log('PASS: map size changes refit the complete course, including fullscreen entry/exit');
+
+assert.equal(vm.runInContext('mapInstance.controls[1].control.options.pseudo',context),true);
+
+assert.equal(attribution.open,false);
+assert.ok(attribution.classes.has('maplibregl-compact'));
+assert.ok(!attribution.classes.has('maplibregl-compact-show'));
+console.log('PASS: attribution starts collapsed without removing source credits');

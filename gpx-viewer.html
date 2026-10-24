@@ -411,9 +411,24 @@
                 attributionControl: { compact: true },
                 locale: { 'FullscreenControl.Enter': '지도 전체화면', 'FullscreenControl.Exit': '전체화면 닫기' }
             });
+            const attribution = document.getElementById('gpx-map').querySelector('.maplibregl-ctrl-attrib');
+            attribution.classList.add('maplibregl-compact');
+            attribution.classList.remove('maplibregl-compact-show');
+            attribution.removeAttribute('open');
             mapInstance.touchZoomRotate.disableRotation();
             mapInstance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
-            mapInstance.addControl(new maplibregl.FullscreenControl(), 'top-right');
+            const fullscreenControl = new maplibregl.FullscreenControl({ pseudo: true });
+            mapInstance.addControl(fullscreenControl, 'top-right');
+            const notifyFullscreen = active => {
+                if (window.parent !== window) window.parent.postMessage({ type: 'marathon-map-fullscreen', active }, '*');
+            };
+            fullscreenControl.on('fullscreenstart', () => notifyFullscreen(true));
+            fullscreenControl.on('fullscreenend', () => notifyFullscreen(false));
+            const exitFullscreen = () => document.getElementById('gpx-map').querySelector('.maplibregl-ctrl-shrink')?.click();
+            document.addEventListener('keydown', event => { if (event.key === 'Escape') exitFullscreen(); });
+            window.addEventListener('message', event => {
+                if (event.source === window.parent && event.data?.type === 'marathon-map-exit-fullscreen') exitFullscreen();
+            });
             routePath = result.points.map(pt => [pt.lon, pt.lat]);
             const courseBounds = path.length ? new maplibregl.LngLatBounds(path[0], path[0]) : null;
             path.forEach(point => courseBounds.extend(point));
